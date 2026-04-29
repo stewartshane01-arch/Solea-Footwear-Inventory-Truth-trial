@@ -561,28 +561,37 @@ Please feel free to message us with any questions before purchasing. Thanks!
                     logger.warning(f"Could not set brand: {e}")
 
 
-            # ✨ NEW: Color selection (Poshmark only)
+            # ✨ NEW: Color selection (supports up to 2 colors)
             if listing_data.get('color'):
                 try:
-                    # Click color dropdown
-                    # color_dropdown = self.driver.find_element(By.CSS_SELECTOR, '[data-et-name="color"]')
                     color_dropdown = WebDriverWait(self.driver, 10).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, '[data-et-name="color"]')))
+                        EC.presence_of_element_located((By.CSS_SELECTOR, '[data-et-name="color"]'))
+                    )
                     color_dropdown.click()
-                    # time.sleep(1)
-                    
-                    # Click the matching color
-                    # color_option = self.driver.find_element(By.XPATH, f"//span[text()='{listing_data['color']}']")
-                    # color_option = self.driver.find_element(By.XPATH, f"//span[contains(text(),'{listing_data['color']}')]")
-                    color_option = WebDriverWait(self.driver, 10).until(
-                        EC.presence_of_element_located((By.XPATH, f"//span[contains(text(),'{listing_data['color']}')]")))
-                    color_option.click()
-                    # time.sleep(1)
-                    
-                    logger.info(f"✓ Set color: {listing_data['color']}")
-                    
+
+                    colors = listing_data.get('color')
+
+                    # If AI sends single string, convert to list
+                    if isinstance(colors, str):
+                        colors = colors.replace('/', ',').split(',')
+                        colors = [c.strip() for c in colors if c.strip()]
+
+                    # Max 2 colors
+                    colors = colors[:2]
+
+                    for color in colors:
+                        color_option = WebDriverWait(self.driver, 10).until(
+                            EC.presence_of_element_located(
+                                (By.XPATH, f"//span[contains(text(),'{color}')]")
+                            )
+                        )
+                        color_option.click()
+                        time.sleep(0.4)
+
+                    logger.info(f"✓ Set colors: {colors}")
+
                 except Exception as e:
-                    logger.warning(f"Could not set color: {e}")
+                    logger.warning(f"Could not set colors: {e}")
 
             
             # Price
