@@ -32,7 +32,7 @@ class AIParserService:
                     'level_3_women_shoes': ['Ankle Boots & Booties', 'Athletic Shoes', 'Combat & Moto Boots', 'Espadrilles', 'Flats & Loafers', 'Heeled Boots', 'Heels', 'Lace Up Boots', 'Moccasins', 'Mules & Clogs', 'Over the Knee Boots', 'Platforms', 'Sandals', 'Slippers', 'Sneakers', 'Wedges', 'Winter & Rain Boots', 'None'],
                     'level_3_kids_shoes': ['Baby & Walker', 'Boots', 'Dress Shoes', 'Moccasins', 'Rain & Snow Boots', 'Sandals & Flip Flops', 'Slippers', 'Sneakers', 'Water Shoes', 'None']
                 },
-                'conditions': ['New With Tags (NWT)', 'Like New', 'Good', 'Fair'],
+                'conditions': ['New With Tags (NWT)', New Without Tags (NWOT), 'Like New', 'Good', 'Fair'],
                 'colors': ['Red', 'Pink', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Gold', 'Silver', 'Black', 'Gray', 'White', 'Cream', 'Brown', 'Tan']
             },
             'mercari': {
