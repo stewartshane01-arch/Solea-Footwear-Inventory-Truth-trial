@@ -264,7 +264,7 @@ class PoshmarkLister:
             hardcoded_description = """
 Please review all photos carefully for condition and overall appearance.
 
-Any wear, marks, creasing, or signs of prior use will be shown in the photos. We provide close up photos for hard to see flaws.
+Any wear, marks, creasing, or signs of prior use will be shown in the photos. We provide close up photos for hard to see flaws if present.
 
 Please feel free to message us with any questions before purchasing. Thanks!
             """
@@ -367,65 +367,60 @@ Please feel free to message us with any questions before purchasing. Thanks!
             # ✨ NEW: Size using AI data
             if listing_data.get('size'):
                 try:
-                    
-                    # size_input = self.driver.find_element(By.CSS_SELECTOR, '[data-test="size"]')
                     size_input = WebDriverWait(self.driver, 10).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, '[data-test="size"]')))
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, '[data-test="size"]'))
+                    )
                     size_input.click()
 
-                    # Try to find the size button (AI formatted it as just "10.5", "6.5", etc.)
-                    size_button = WebDriverWait(self.driver, 7).until(
-                        EC.element_to_be_clickable((By.XPATH, f"//button[contains(@class,'multi-size-selector__button') and text()='{listing_data['size']}']"))
-                    )
+                    size_value = str(listing_data['size']).strip().upper()
 
-                    # //button[contains(@class,'multi-size-selector__button') and text()='4c']
-
-                    print("here is size xpath")
-                    print(f"//button[contains(@class,'multi-size-selector__button') and text()='{listing_data['size']}']")
-                    size_button.click()
-                    # time.sleep(1)
-                    
-                    logger.info(f"✓ Set size: {listing_data['size']}")
-                    
-                except:
-                    # If not in standard sizes, use custom
                     try:
-                        # custom_tab_btn = WebDriverWait(self.driver, 10).until(
-                        #     EC.element_to_be_clickable((By.CSS_SELECTOR, '[data-test="horizontal-nav-1"]'))
-                        # )
+                        size_button = WebDriverWait(self.driver, 7).until(
+                            EC.element_to_be_clickable(
+                                (
+                                    By.XPATH,
+                                    f"//button[contains(@class,'multi-size-selector__button') and normalize-space()='{size_value}']"
+                                )
+                            )
+                        )
+
+                        print("here is size xpath")
+                        print(f"//button[contains(@class,'multi-size-selector__button') and normalize-space()='{size_value}']")
+
+                        size_button.click()
+                        logger.info(f"✓ Set size: {size_value}")
+
+                    except Exception:
+                        logger.warning(f"Size '{size_value}' not found in standard sizes, using custom")
+
                         custom_tab_btn = WebDriverWait(self.driver, 10).until(
                             EC.element_to_be_clickable((By.XPATH, '//span[contains(text(),"Custom")]'))
                         )
                         custom_tab_btn.click()
 
-                        size_input = WebDriverWait(self.driver, 10).until(
+                        custom_size_input = WebDriverWait(self.driver, 10).until(
                             EC.element_to_be_clickable((By.CSS_SELECTOR, '[data-vv-name="customSize"]'))
                         )
-                        size_input.send_keys(listing_data['size'])
-                        time.sleep(0.5)
+                        custom_size_input.clear()
+                        custom_size_input.send_keys(size_value)
+                        time.sleep(1)
 
-                        
-                        # save_btn = self.driver.find_element(By.XPATH,"//button[contains(text(),'Save')]")
                         save_btn = WebDriverWait(self.driver, 10).until(
-                        EC.presence_of_element_located((By.XPATH, "//button[contains(text(),'Save')]")))
+                            EC.element_to_be_clickable((By.XPATH, "//button[contains(text(),'Save')]"))
+                        )
                         save_btn.click()
-                        # time.sleep(1)
 
-                        # done_btn = self.driver.find_element(By.CSS_SELECTOR,'[data-et-name="apply"]')
                         done_btn = WebDriverWait(self.driver, 10).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, '[data-et-name="apply"]')))
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, '[data-et-name="apply"]'))
+                        )
                         done_btn.click()
-                        # time.sleep(1)
-                        
-                        logger.info(f"✓ Set custom size: {listing_data['size']}")
-                        
-                    except Exception as e:
-                        logger.warning(f"Could not set size: {e}")
-            
+
+                        logger.info(f"✓ Set custom size: {size_value}")
+
+                except Exception as e:
+                    logger.warning(f"Could not set size: {e}")
 
 
-            # ============================================
-            # CONDITION SELECTION 
             # ============================================
             # CONDITION SELECTION
             
@@ -441,7 +436,7 @@ Please feel free to message us with any questions before purchasing. Thanks!
                     EC.element_to_be_clickable((By.XPATH, '//div[contains(text(),"Select Condition")]'))
                 )
                 condition_dropdown.click()
-                time.sleep(0.5)
+                time.sleep(1)
                 
                 # Click condition option
                 condition_xpath = f"//div[@class='fw--med' and contains(text(), '{poshmark_condition}')]"
@@ -449,7 +444,7 @@ Please feel free to message us with any questions before purchasing. Thanks!
                     EC.element_to_be_clickable((By.XPATH, condition_xpath))
                 )
                 condition_option.click()
-                time.sleep(0.5)
+                time.sleep(1)
                 
                 logger.info(f"✓ Set condition: {poshmark_condition}")
                 
@@ -483,14 +478,14 @@ Please feel free to message us with any questions before purchasing. Thanks!
                             try:
                                 tag_option = WebDriverWait(self.driver, 5).until(
                                     EC.element_to_be_clickable(
-                                        (By.XPATH, f"//*[contains(text(), '{tag}')]")
+                                        (By.XPATH, f"//*[normalize-space()='{tag}']")
                                     )
                                 )
                                 tag_option.click()
                             except Exception:
                                 style_input.send_keys(Keys.ENTER)
 
-                            time.sleep(0.5)
+                            time.sleep(1)
                             logger.info(f"✓ Added style tag: {tag}")
 
                         except Exception as e:
@@ -504,51 +499,7 @@ Please feel free to message us with any questions before purchasing. Thanks!
             except Exception as e:
                 logger.warning(f"Could not set style tags: {e}")
             
-            
-            # Size (from item_specifics if available)
-            # if listing_data.get('item_specifics', {}).get('Size'):
-            #     try:
-            #         # clicking on dropdown
-            #         size_input = self.driver.find_element(By.CSS_SELECTOR, '[data-test="size"]')
-            #         size_input.click()
-
-            #         # first try to select already showing option 
-            #         size_button = WebDriverWait(self.driver, 7).until(
-            #             EC.element_to_be_clickable((By.XPATH, f"//button[contains(@class,'multi-size-selector__button') and text()='{listing_data['item_specifics']['Size']}']"))
-            #         )
-
-            #         if size_input is not None:
-            #             size_button.click()
-            #         else:
-            #             # now clicking on custom tab in new opened popup
-            #             custom_tab_btn = WebDriverWait(self.driver, 10).until(
-            #                 EC.element_to_be_clickable((By.CSS_SELECTOR, '[data-test="horizontal-nav-1"]'))
-            #             )
-            #             custom_tab_btn.click()
-
-            #             # now typing size and clicking on save and done button
-            #             size_input = WebDriverWait(self.driver, 10).until(
-            #                 EC.element_to_be_clickable((By.CSS_SELECTOR, '[data-vv-name="customSize"]'))
-            #             )
-            #             size_input.send_keys(listing_data['item_specifics']['Size'])
-            #             time.sleep(2)
-
-            #             # clicking on save button
-            #             save_btn = self.driver.find_element(By.XPATH,"//button[contains(text(),'Save')]")
-            #             save_btn.click()
-            #             time.sleep(1)
-
-            #             # now clicking on `Done` Btn
-            #             done_btn = self.driver.find_element(By.CSS_SELECTOR,'[data-et-name="apply"]')
-            #             done_btn.click()
-            #             time.sleep(1)
-
-            #     except Exception as e:
-            #         logger.warning("Could not set size",e)
-
-
-
-            
+                       
             # # Brand
             # if listing_data.get('item_specifics', {}).get('Brand'):
             #     try:
@@ -579,34 +530,63 @@ Please feel free to message us with any questions before purchasing. Thanks!
             if listing_data.get('color'):
                 try:
                     color_dropdown = WebDriverWait(self.driver, 10).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, '[data-et-name="color"]'))
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, '[data-et-name="color"]'))
                     )
                     color_dropdown.click()
+                    time.sleep(1)
 
                     colors = listing_data.get('color')
 
-                    # If AI sends single string, convert to list
                     if isinstance(colors, str):
-                        colors = colors.replace('/', ',').split(',')
+                        colors = colors.replace('/', ',').replace('&', ',').split(',')
                         colors = [c.strip() for c in colors if c.strip()]
 
-                    # Max 2 colors
                     colors = colors[:2]
 
                     for color in colors:
-                        color_option = WebDriverWait(self.driver, 10).until(
-                            EC.presence_of_element_located(
-                                (By.XPATH, f"//span[contains(text(),'{color}')]")
-                            )
-                        )
-                        color_option.click()
-                        time.sleep(0.4)
+                        try:
+                            # Try multiple ways to find the color element
+                            try:
+                                # Exact text match
+                                color_option = WebDriverWait(self.driver, 5).until(
+                                    EC.element_to_be_clickable(
+                                        (By.XPATH, f"//*[normalize-space()='{color}']")
+                                    )
+                                )
+                            except:
+                                try:
+                                    # Contains text match (fallback)
+                                    color_option = WebDriverWait(self.driver, 5).until(
+                                        EC.element_to_be_clickable(
+                                            (By.XPATH, f"//*[contains(text(), '{color}')]")
+                                        )
+                                    )
+                                except:
+                                    # Attribute-based match (common for Poshmark)
+                                    color_option = WebDriverWait(self.driver, 5).until(
+                                        EC.element_to_be_clickable(
+                                            (By.XPATH, f"//*[@data-et-name='{color.lower()}']")
+                                        )
+                                    )
+
+                            # Scroll into view (important for hidden color options)
+                            self.driver.execute_script("arguments[0].scrollIntoView(true);", color_option)
+                            time.sleep(0.2)
+
+                            # Click using JS (more reliable than .click())
+                            self.driver.execute_script("arguments[0].click();", color_option)
+
+                            time.sleep(0.4)
+                            logger.info(f"✓ Added color: {color}")
+
+                        except Exception as e:
+                            logger.warning(f"Color '{color}' failed, skipping: {e}")
+                            continue
 
                     logger.info(f"✓ Set colors: {colors}")
 
                 except Exception as e:
                     logger.warning(f"Could not set colors: {e}")
-
             
             # Price
             # clicing on price input box to open popup
