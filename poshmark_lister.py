@@ -355,7 +355,7 @@ Please feel free to message us with any questions before purchasing. Thanks!
 
                         fallback_elem = WebDriverWait(self.driver, 10).until(
                             EC.element_to_be_clickable(
-                        (By.XPATH, "//*[normalize-space()='Athletic Shoes']")
+                                (By.XPATH, "//*[normalize-space()='Athletic Shoes']")
                             )
                         )
                         fallback_elem.click()
