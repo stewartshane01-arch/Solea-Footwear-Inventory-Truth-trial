@@ -367,6 +367,9 @@ Please feel free to message us with any questions before purchasing. Thanks!
             # ✨ NEW: Size using AI data
             size_data = listing_data.get('size') or listing_data.get('item_specifics', {}).get('Size')
 
+            print("RAW SIZE DATA:", size_data)
+            print("CATEGORY DATA:", listing_data.get('category'))
+
             if size_data:
                 try:
                     size_input = WebDriverWait(self.driver, 10).until(
@@ -531,6 +534,8 @@ Please feel free to message us with any questions before purchasing. Thanks!
             # ✨ NEW: Color selection (supports up to 2 colors)
             color_data = listing_data.get('color') or listing_data.get('item_specifics', {}).get('Color')
 
+            print("RAW COLOR DATA:", color_data)
+
             if color_data:
                 try:
                     color_dropdown = WebDriverWait(self.driver, 10).until(
@@ -542,8 +547,23 @@ Please feel free to message us with any questions before purchasing. Thanks!
                     colors = color_data
 
                     if isinstance(colors, str):
-                        colors = colors.replace('/', ',').replace('&', ',').replace(' and ', ',').split(',')
-                        colors = [c.strip() for c in colors if c.strip()]
+                        known_colors = [
+                            "Black", "White", "Gray", "Grey", "Blue", "Red", "Brown", "Tan",
+                            "Cream", "Pink", "Purple", "Green", "Yellow", "Orange", "Gold", "Silver"
+                        ]
+
+                        found_colors = []
+                        colors_lower = colors.lower()
+
+                        for known_color in known_colors:
+                            if known_color.lower() in colors_lower:
+                                normalized_color = "Gray" if known_color == "Grey" else known_color
+                                if normalized_color not in found_colors:
+                                    found_colors.append(normalized_color)
+
+                        colors = found_colors if found_colors else [colors.strip()]
+
+                    print("PARSED COLORS:", colors)
 
                     colors = colors[:2]
 
