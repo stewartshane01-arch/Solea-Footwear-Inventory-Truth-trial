@@ -555,13 +555,17 @@ Please feel free to message us with any questions before purchasing. Thanks!
                         found_colors = []
                         colors_lower = colors.lower()
 
+                        # If parser gave bad generic color, use title instead
+                        if colors_lower in ["other", "unknown", "multi", "multicolor", "multi-color"]:
+                            colors_lower = listing_data.get("title", "").lower()
+
                         for known_color in known_colors:
                             if known_color.lower() in colors_lower:
                                 normalized_color = "Gray" if known_color == "Grey" else known_color
                                 if normalized_color not in found_colors:
                                     found_colors.append(normalized_color)
 
-                        colors = found_colors if found_colors else [colors.strip()]
+                        colors = found_colors if found_colors else ["Black"]
 
                     print("PARSED COLORS:", colors)
 
@@ -575,7 +579,7 @@ Please feel free to message us with any questions before purchasing. Thanks!
                             try:
                                 color_option = WebDriverWait(self.driver, 5).until(
                                     EC.element_to_be_clickable(
-                                        (By.XPATH, f"//button[.//text()[contains(., '{color}')]]")
+                                        (By.XPATH, f"//button[contains(., '{color}')]")
                                     )
                                 )
                             except:
