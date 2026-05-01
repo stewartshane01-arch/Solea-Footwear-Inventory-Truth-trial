@@ -321,7 +321,10 @@ Please feel free to message us with any questions before purchasing. Thanks!
                     category = listing_data.get('category', {})
                     level_1 = category.get('level_1', 'Men')
                     level_2 = category.get('level_2', 'Shoes')
-                    level_3 = category.get('level_3', 'Sneakers')
+                    level_3 = category.get('level_3', 'Athletic Shoes')
+
+                    if level_3 in ["Other", "Unknown", None, ""]:
+                        level_3 = "Athletic Shoes"
                     
                     # Click level 1 (Men/Women/Kids)
                     # level_1_elem = self.driver.find_element(By.XPATH, f'//p[contains(text(),"{level_1}")]')
@@ -348,11 +351,11 @@ Please feel free to message us with any questions before purchasing. Thanks!
                         )
                         level_3_elem.click()
                     except Exception:
-                        logger.warning(f"Could not click level_3 '{level_3}', defaulting to Sneakers")
+                        logger.warning(f"Could not click level_3 '{level_3}', defaulting to Athletic Shoes")
 
                         fallback_elem = WebDriverWait(self.driver, 10).until(
                             EC.element_to_be_clickable(
-                                (By.XPATH, "//*[normalize-space()='Sneakers']")
+                        (By.XPATH, "//*[normalize-space()='Athletic Shoes']")
                             )
                         )
                         fallback_elem.click()
@@ -377,13 +380,14 @@ Please feel free to message us with any questions before purchasing. Thanks!
                     )
                     size_input.click()
 
+                   
                     size_value = str(size_data).strip().upper()
                     category_data = listing_data.get('category', {})
                     level_1_for_size = str(category_data.get('level_1', '')).lower()
 
-                    # If kids category and size is numeric only, convert to youth size
-                    if level_1_for_size == 'kids' and size_value.replace('.', '', 1).isdigit():
-                        size_value = f"{size_value}Y"
+                    # Convert kids sizes to Poshmark format (remove Y/C)
+                    if level_1_for_size == 'kids':
+                        size_value = size_value.replace('Y', '').replace('C', '')
 
                     print("SIZE VALUE FINAL:", size_value)
 
@@ -392,13 +396,13 @@ Please feel free to message us with any questions before purchasing. Thanks!
                             EC.element_to_be_clickable(
                                 (
                                     By.XPATH,
-                                    f"//button[contains(@class,'multi-size-selector__button') and normalize-space()='{size_value}']"
+                                    f"//button[contains(@class,'multi-size-selector__button') and contains(normalize-space(), '{size_value}')]"
                                 )
                             )
                         )
 
                         print("here is size xpath")
-                        print(f"//button[contains(@class,'multi-size-selector__button') and normalize-space()='{size_value}']")
+                        print(f"//button[contains(@class,'multi-size-selector__button') and contains(normalize-space(), '{size_value}')]")
 
                         size_button.click()
                         logger.info(f"✓ Set size: {size_value}")
@@ -587,7 +591,7 @@ Please feel free to message us with any questions before purchasing. Thanks!
                             try:
                                 color_option = WebDriverWait(self.driver, 5).until(
                                     EC.element_to_be_clickable(
-                                        (By.XPATH, f"//*[self::button or self::div or self::span][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{color.lower()}')]")
+                                        (By.XPATH, f"//*[@data-et-name='{color.lower()}']")
                                     )
                                 )
                             except:
