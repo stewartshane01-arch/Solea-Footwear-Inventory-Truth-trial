@@ -378,6 +378,14 @@ Please feel free to message us with any questions before purchasing. Thanks!
                     size_input.click()
 
                     size_value = str(size_data).strip().upper()
+                    category_data = listing_data.get('category', {})
+                    level_1_for_size = str(category_data.get('level_1', '')).lower()
+
+                    # If kids category and size is numeric only, convert to youth size
+                    if level_1_for_size == 'kids' and size_value.replace('.', '', 1).isdigit():
+                        size_value = f"{size_value}Y"
+
+                    print("SIZE VALUE FINAL:", size_value)
 
                     try:
                         size_button = WebDriverWait(self.driver, 7).until(
@@ -579,7 +587,7 @@ Please feel free to message us with any questions before purchasing. Thanks!
                             try:
                                 color_option = WebDriverWait(self.driver, 5).until(
                                     EC.element_to_be_clickable(
-                                        (By.XPATH, f"//button[contains(., '{color}')]")
+                                        (By.XPATH, f"//*[self::button or self::div or self::span][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{color.lower()}')]")
                                     )
                                 )
                             except:
