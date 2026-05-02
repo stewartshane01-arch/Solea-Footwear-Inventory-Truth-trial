@@ -61,16 +61,14 @@ def extract_style_tags_from_title(title: str, max_tags: int = 3) -> list:
                     matched_tags.append(tag)
                 break
 
-    # Most shoes should include Casual
     if 'Casual' not in matched_tags:
         matched_tags.append('Casual')
 
-    # Fill remaining slots with broad selling tags
-    fallback_tags = ['Activewear', 'Streetwear', 'Outdoor']
+    fallback_tags = ['Outdoor']
 
     for tag in fallback_tags:
         if len(matched_tags) >= max_tags:
-            break
+           break
         if tag not in matched_tags:
             matched_tags.append(tag)
 
@@ -125,6 +123,30 @@ def extract_size_from_title(title: str) -> str:
             return match.group(1).upper()
 
     return None
+
+def map_poshmark_condition(raw_condition: str) -> str:
+    if not raw_condition:
+        return "Good"
+
+    condition = str(raw_condition).strip().lower()
+
+    if condition in [
+        "new",
+        "new with box",
+        "new without box"
+    ]:
+        return "New With Tags"
+
+    if condition in [
+        "new with defects",
+        "excellent",
+        "excellent used condition",
+        "e1",
+        "e2"
+    ]:
+        return "Like New"
+
+    return "Good"
 
 class PoshmarkLister:
     """Selenium-based listing creation for Poshmark"""
@@ -441,25 +463,40 @@ Please feel free to message us with any questions before purchasing. Thanks!
 
                     # Convert kids sizes to Poshmark format (remove Y/C)
                     if level_1_for_size == 'kids':
-                        size_value = size_value.replace('Y', '').replace('C', '')
+                        size_candidates = [
+                            size_value,
+                            size_value.replace('Y', '').replace('C', '')
+                        ]
+                    else:
+                        size_candidates = [size_value]
 
-                    logger.debug(f"[SIZE] Final normalized size: {size_value}")
+                    logger.debug(f"[SIZE] Candidates: {size_candidates}")
 
                     try:
-                        size_button = WebDriverWait(self.driver, 7).until(
-                            EC.element_to_be_clickable(
-                                (
-                                    By.XPATH,
-                                   f"//button[contains(@class,'multi-size-selector__button') and normalize-space()='{size_value}']"
-                                )
-                            )
-                        )
+                        size_button = None
 
-                        logger.debug("here is size xpath")
-                        logger.debug(f"//button[contains(@class,'multi-size-selector__button') and normalize-space()='{size_value}']")
+                        for candidate in size_candidates:
+                            try:
+                                size_button = WebDriverWait(self.driver, 4).until(
+                                    EC.element_to_be_clickable(
+                                        (
+                                            By.XPATH,
+                                            f"//button[contains(@class,'multi-size-selector__button') and normalize-space()='{candidate}']"
+                                        )
+                                    )
+                                )
+                                size_value = candidate
+                                break
+                            except Exception:
+                                continue
+
+                        if not size_button:
+                            raise Exception(f"No standard size matched candidates: {size_candidates}")
 
                         size_button.click()
                         logger.info(f"✓ Set size: {size_value}")
+
+                        logger.debug(f"[SIZE] XPath used: //button[contains(@class,'multi-size-selector__button') and normalize-space()='{size_value}']")
 
                     except Exception:
                         logger.warning(f"Size '{size_value}' not found in standard sizes, using custom")
@@ -497,7 +534,14 @@ Please feel free to message us with any questions before purchasing. Thanks!
             
             try:
                 # Get condition from category_data (platform-specific structured data)
-                poshmark_condition = listing_data.get('category_data', {}).get('condition', 'Good')
+                raw_condition = (
+                    listing_data.get('condition')
+                    or listing_data.get('category_data', {}).get('condition')
+                    or listing_data.get('item_specifics', {}).get('Condition')
+                )
+
+                poshmark_condition = map_poshmark_condition(raw_condition)
+                
                 logger.debug(f"[CONDITION] Poshmark condition: {poshmark_condition}")
                 
                 logger.info(f"Setting condition: {poshmark_condition}")
@@ -572,7 +616,7 @@ Please feel free to message us with any questions before purchasing. Thanks!
                        
             # Brand
             brand_value = listing_data.get('brand') or listing_data.get('item_specifics', {}).get('Brand')
-            
+
             if brand_value:
                 try:
                     brand = str(brand_value).strip()
@@ -584,28 +628,31 @@ Please feel free to message us with any questions before purchasing. Thanks!
                     )
                     brand_input.clear()
                     brand_input.send_keys(brand)
-                    time.sleep(1)
 
+                    # WAIT for dropdown to appear (critical fix)
                     try:
                         brand_option = WebDriverWait(self.driver, 5).until(
-                            EC.element_to_be_clickable(
-                                (
-                                    By.XPATH,
-                                    f"//li[normalize-space()='{brand}']"
-                                )
+                            EC.presence_of_element_located(
+                                (By.XPATH, f"//li[contains(., '{brand}')]")
                             )
                         )
-                        brand_option.click()
-                        logger.info(f"✓ Selected brand dropdown option: {brand}")
+
+                        self.driver.execute_script(
+                            "arguments[0].scrollIntoView({block: 'center'});",
+                            brand_option
+                        )
+                        time.sleep(0.3)
+                        self.driver.execute_script("arguments[0].click();", brand_option)
 
                     except Exception:
-                        logger.warning(f"Brand dropdown option not found for '{brand}', leaving typed value")
+                        # fallback: just tab out
+                        brand_input.send_keys(Keys.TAB)
+                        logger.warning(f"[BRAND] Dropdown not found, used typed value: {brand}")
 
                     logger.info(f"✓ Set brand: {brand}")
 
                 except Exception as e:
                     logger.warning(f"Could not set brand: {e}")
-
 
             # Color selection supports up to 2 colors
             color_data = listing_data.get('color') or listing_data.get('item_specifics', {}).get('Color')
