@@ -4,7 +4,7 @@ Main coordinator for automated listing creation on multiple platforms
 """
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -76,8 +76,8 @@ class CrosslistService:
             logger.debug(f"Unit {unit.unit_code} currently listed on: {listed_platforms}")
             
             # Determine which platforms need listings
-            # target_platforms = ['ebay', 'poshmark']
-            target_platforms = ['ebay','poshmark']
+            # target_platforms = ['poshmark']
+            target_platforms = ['poshmark']
             platforms_to_list = [p for p in target_platforms if p not in listed_platforms]
             
             if not platforms_to_list:
@@ -362,14 +362,59 @@ class CrosslistService:
         
         return formatted_data
     
-    
+    def _unit_needs_poshmark_crosslist(self, unit_id) -> bool:
+        """
+        Fast pre-check used by bulk_crosslist.
+
+        Returns True only if:
+        - unit exists
+        - unit.status is listed
+        - unit has no active Poshmark listing
+        - unit has a validated listing template
+        """
+        from database import Unit, ListingTemplate
+
+        unit = self.db.query(Unit).filter(Unit.id == unit_id).first()
+
+        if not unit:
+            logger.warning(f"Unit {unit_id} not found")
+            return False
+
+        if unit.status != 'listed':
+            logger.debug(f"Unit {unit.unit_code} status is {unit.status}, skipping")
+            return False
+
+        for listing_unit in unit.listing_units:
+            listing = listing_unit.listing
+            if (
+                listing
+                and listing.status == 'active'
+                and listing.channel
+                and listing.channel.name.lower() == 'poshmark'
+            ):
+                return False
+
+        template = self.db.query(ListingTemplate).filter(
+            ListingTemplate.product_id == unit.product_id
+        ).first()
+
+        if not template:
+            logger.debug(f"Unit {unit.unit_code} has no listing template, skipping")
+            return False
+
+        if not template.is_validated:
+            logger.debug(f"Unit {unit.unit_code} template not validated, skipping")
+            return False
+
+        return True
+
     def bulk_crosslist(self, unit_ids: List) -> Dict:
         """
         Cross-list multiple units at once
-        
+
         Args:
             unit_ids (list): List of unit UUIDs
-        
+
         Returns:
             dict: Bulk results
         """
@@ -379,27 +424,33 @@ class CrosslistService:
             'created': 0,
             'errors': []
         }
-        
+
         for unit_id in unit_ids:
             try:
+                if not self._unit_needs_poshmark_crosslist(unit_id):
+                    logger.info(f"Skipping unit {unit_id}: already listed on Poshmark or not eligible")
+                    results['processed'] += 1
+                    continue
+
                 result = self.check_and_crosslist(unit_id)
                 results['processed'] += 1
                 results['created'] += len(result.get('created_listings', []))
-                
+
                 if result.get('errors'):
                     results['errors'].extend(result['errors'])
 
-                # ADD DELAY between listings
-                import time
-                time.sleep(60)  # Wait 60 seconds between each unit
-                    
+                # Only wait if this unit actually created a new marketplace listing
+                if result.get('created_listings'):
+                    import time
+                    time.sleep(60)
+
             except Exception as e:
                 logger.error(f"Error cross-listing unit {unit_id}: {e}")
                 results['errors'].append({
                     'unit_id': str(unit_id),
                     'error': str(e)
                 })
-        
+
         logger.info(f"Bulk cross-listing complete: {results['created']} listings created")
-        
-        return result
+
+        return results
