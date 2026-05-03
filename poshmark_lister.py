@@ -138,11 +138,7 @@ def map_poshmark_condition(raw_condition: str) -> str:
         return "New With Tags"
 
     if condition in [
-        "new with defects",
-        "excellent",
-        "excellent used condition",
-        "e1",
-        "e2"
+        "new with defects"
     ]:
         return "Like New"
 
@@ -590,32 +586,32 @@ Please feel free to message us with any questions before purchasing. Thanks!
                             style_input.clear()
                             style_input.send_keys(tag)
                             time.sleep(1.5)
-
+                    
                             try:
                                 tag_option = WebDriverWait(self.driver, 5).until(
                                     EC.presence_of_element_located(
                                         (
                                             By.XPATH,
-                                            f"//*[self::li or self::div or self::span][normalize-space()='{tag}']"
+                                            f"//*[self::li or self::div or self::span or self::button][normalize-space()='{tag}']"
                                         )
                                     )
                                 )
-                            
+                    
                                 self.driver.execute_script(
                                     "arguments[0].scrollIntoView({block: 'center'});",
                                     tag_option
                                 )
                                 time.sleep(0.2)
                                 self.driver.execute_script("arguments[0].click();", tag_option)
-                            
+                    
                             except Exception:
                                 style_input.send_keys(Keys.ARROW_DOWN)
                                 time.sleep(0.2)
                                 style_input.send_keys(Keys.ENTER)
-                            
+                    
                             time.sleep(0.8)
                             logger.info(f"✓ Added style tag: {tag}")
-
+                    
                         except Exception as e:
                             logger.warning(f"Style tag '{tag}' failed, skipping: {e}")
                             continue
