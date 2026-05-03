@@ -114,6 +114,11 @@ def extract_size_from_title(title: str) -> str:
     patterns = [
         r'\bsize\s*([0-9]{1,2}(?:\.5)?[YCMB]?)\b',
         r'\bsz\s*([0-9]{1,2}(?:\.5)?[YCMB]?)\b',
+        r'\bus\s*([0-9]{1,2}(?:\.5)?[YCMB]?)\b',
+        r'\bmens?\s*([0-9]{1,2}(?:\.5)?[YCMB]?)\b',
+        r'\bwomens?\s*([0-9]{1,2}(?:\.5)?[YCMB]?)\b',
+        r'\bmen\s*([0-9]{1,2}(?:\.5)?[YCMB]?)\b',
+        r'\bwomen\s*([0-9]{1,2}(?:\.5)?[YCMB]?)\b',
         r'\b([0-9]{1,2}(?:\.5)?[YCMB])\b'
     ]
 
@@ -374,19 +379,45 @@ Please feel free to message us with any questions before purchasing. Thanks!
                     level_1 = category.get('level_1', 'Men')
                     level_2 = category.get('level_2', 'Shoes')
                     level_3 = category.get('level_3')
+                    title_lower = listing_data.get('title', '').lower()
+
                     if level_3 in ["Other", "Unknown", None, ""]:
-                        level_3 = None
+                        if any(word in title_lower for word in ["boot", "boots"]):
+                            level_3 = "Boots"
+                        elif any(word in title_lower for word in ["sandal", "sandals", "flip flop", "slide"]):
+                            level_3 = "Sandals"
+                        elif any(word in title_lower for word in ["loafer", "oxford", "dress"]):
+                            level_3 = "Dress Shoes"
+                        elif any(word in title_lower for word in ["heel", "heels", "pump", "pumps", "wedge"]):
+                            level_3 = "Heels"
+                        elif any(word in title_lower for word in ["cleat", "cleats"]):
+                            if level_1.lower() == "kids":
+                                level_3 = "Sneakers"
+                            else:
+                                level_3 = "Athletic Shoes"
+                        else:
+                            if level_1.lower() == "kids":
+                                level_3 = "Sneakers"
+                            else:
+                                level_3 = "Athletic Shoes"
+
+                    logger.info(f"[CATEGORY] Input category: {category}")
+                    logger.info(f"[CATEGORY] Final path: {level_1} > {level_2} > {level_3}")
                     
                     # Click level 1 (Men/Women/Kids)
                     level_1_elem = WebDriverWait(self.driver, 10).until(
-                    EC.presence_of_element_located((By.XPATH, f'//p[contains(text(),"{level_1}")]')))
-                    level_1_elem.click()
-                    
+                        EC.element_to_be_clickable((By.XPATH, f'//p[contains(text(),"{level_1}")]'))
+                    )
+                    self.driver.execute_script("arguments[0].click();", level_1_elem)
+                    time.sleep(0.5)
+                                        
                     # Click level 2 (Shoes/Accessories/etc)
                     # level_2_elem = self.driver.find_element(By.XPATH, f'//div[contains(text(),"{level_2}")]')
                     level_2_elem = WebDriverWait(self.driver, 10).until(
-                    EC.presence_of_element_located((By.XPATH, f'//div[contains(text(),"{level_2}")]')))
-                    level_2_elem.click()
+                        EC.element_to_be_clickable((By.XPATH, f'//div[contains(text(),"{level_2}")]'))
+                    )
+                    self.driver.execute_script("arguments[0].click();", level_2_elem)
+                    time.sleep(0.5)
                     
                     # Click level 3 (Sneakers/Boots/etc) - it opens automatically
                     # level_3_elem = self.driver.find_element(By.XPATH, f"//a[contains(text(), '{level_3}')]")
@@ -396,6 +427,7 @@ Please feel free to message us with any questions before purchasing. Thanks!
                         if level_3:
                             for attempt in range(2):
                                 try:
+                                    logger.debug(f"[CATEGORY] Attempting level_3 click: {level_3}")
                                     level_3_elem = WebDriverWait(self.driver, 5).until(
                                         EC.element_to_be_clickable(
                                             (By.XPATH, f"//a[normalize-space()='{level_3}']")
@@ -452,6 +484,7 @@ Please feel free to message us with any questions before purchasing. Thanks!
                         EC.element_to_be_clickable((By.CSS_SELECTOR, '[data-test="size"]'))
                     )
                     size_input.click()
+                    time.sleep(0.5)
 
                    
                     size_value = str(size_data).strip().upper().replace(" ", "")
@@ -603,6 +636,7 @@ Please feel free to message us with any questions before purchasing. Thanks!
                                 )
                                 time.sleep(0.2)
                                 self.driver.execute_script("arguments[0].click();", tag_option)
+                                logger.debug(f"[STYLE] Successfully clicked tag: {tag}")
                     
                             except Exception:
                                 style_input.send_keys(Keys.ARROW_DOWN)
@@ -614,8 +648,9 @@ Please feel free to message us with any questions before purchasing. Thanks!
                     
                         except Exception as e:
                             logger.warning(f"Style tag '{tag}' failed, skipping: {e}")
+                            logger.debug(f"[STYLE] Attempted tag: {tag}")
                             continue
-
+                            
                     logger.info(f"✓ Set {len(style_tags)} style tags")
                 else:
                     logger.debug("No style tags matched from title")
