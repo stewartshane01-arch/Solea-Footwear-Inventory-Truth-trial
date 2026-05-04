@@ -637,7 +637,13 @@ Please feel free to message us with any questions before purchasing. Thanks!
                             logger.warning(f"Style tag '{tag}' failed, skipping: {e}")
                             continue
             
-                       
+                    logger.info(f"✓ Set {len(style_tags)} style tags")
+                else:
+                    logger.debug("No style tags matched from title")
+
+            except Exception as e:
+                logger.warning(f"Could not set style tags: {e}")
+            
             # Brand
             brand_value = listing_data.get('brand') or listing_data.get('item_specifics', {}).get('Brand')
 
