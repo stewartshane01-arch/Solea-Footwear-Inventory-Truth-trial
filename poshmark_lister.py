@@ -112,20 +112,20 @@ def extract_size_from_title(title: str) -> str:
         return None
 
     patterns = [
-        r'\bsize\s*([0-9]{1,2}(?:\.5)?[YCMB]?)\b',
-        r'\bsz\s*([0-9]{1,2}(?:\.5)?[YCMB]?)\b',
-        r'\bus\s*([0-9]{1,2}(?:\.5)?[YCMB]?)\b',
-        r'\bmens?\s*([0-9]{1,2}(?:\.5)?[YCMB]?)\b',
-        r'\bwomens?\s*([0-9]{1,2}(?:\.5)?[YCMB]?)\b',
-        r'\bmen\s*([0-9]{1,2}(?:\.5)?[YCMB]?)\b',
-        r'\bwomen\s*([0-9]{1,2}(?:\.5)?[YCMB]?)\b',
-        r'\b([0-9]{1,2}(?:\.5)?[YCMB])\b'
+        r'\bsize\s*([0-9]{1,2}(?:\.5)?(?:[YCMBWED]{1,2})?)\b',
+        r'\bsz\s*([0-9]{1,2}(?:\.5)?(?:[YCMBWED]{1,2})?)\b',
+        r'\bus\s*([0-9]{1,2}(?:\.5)?(?:[YCMBWED]{1,2})?)\b',
+        r'\bmens?\s*([0-9]{1,2}(?:\.5)?(?:[YCMBWED]{1,2})?)\b',
+        r'\bwomens?\s*([0-9]{1,2}(?:\.5)?(?:[YCMBWED]{1,2})?)\b',
+        r'\bmen\s*([0-9]{1,2}(?:\.5)?(?:[YCMBWED]{1,2})?)\b',
+        r'\bwomen\s*([0-9]{1,2}(?:\.5)?(?:[YCMBWED]{1,2})?)\b',
+        r'\b([0-9]{1,2}(?:\.5)?(?:[YCMBWED]{1,2}))\b'
     ]
 
     for pattern in patterns:
         match = re.search(pattern, title, re.IGNORECASE)
         if match:
-            return match.group(1).upper()
+            return normalize_poshmark_size(match.group(1))
 
     return None
 
@@ -150,17 +150,31 @@ def get_listing_size(listing_data: Dict) -> str:
         or ai_data.get("size")
         or extract_size_from_title(listing_data.get("title", ""))
     )
-
+   
     if not possible_size:
         return None
 
-    return (
-        str(possible_size)
+    return normalize_poshmark_size(possible_size)
+
+def normalize_poshmark_size(size_value: str) -> str:
+    """Normalize shoe size strings without guessing."""
+    if not size_value:
+        return None
+
+    size = (
+        str(size_value)
         .strip()
         .upper()
         .replace("US", "")
         .replace(" ", "")
+        .replace(".C", "C")
+        .replace(".Y", "Y")
     )
+
+    if size.endswith(("W", "E", "D", "M", "B")) and not size.endswith(("Y", "C")):
+        size = size[:-1]
+
+    return size
 
 def map_poshmark_condition(raw_condition: str) -> str:
     if not raw_condition:
@@ -541,17 +555,18 @@ Please feel free to message us with any questions before purchasing. Thanks!
                     size_input.click()
                     time.sleep(0.5)
 
-                   
-                    size_value = str(size_data).strip().upper().replace(" ", "")
+                    size_value = normalize_poshmark_size(size_data)
                     category_data = listing_data.get('category', {})
                     level_1_for_size = str(category_data.get('level_1', '')).lower()
-
-                    # Convert kids sizes to Poshmark format (remove Y/C)
+                   
+                    # Kids sizing: keep C/Y first. Do not guess by stripping unless exact C/Y fails.
                     if level_1_for_size == 'kids':
-                        size_candidates = [
-                            size_value,
-                            size_value.replace('Y', '').replace('C', '')
-                        ]
+                        size_candidates = [size_value]
+
+                        if size_value.endswith("C") or size_value.endswith("Y"):
+                            stripped_size = size_value.replace("Y", "").replace("C", "")
+                            if stripped_size != size_value:
+                                size_candidates.append(stripped_size)
                     else:
                         size_candidates = [size_value]
 
@@ -671,14 +686,22 @@ Please feel free to message us with any questions before purchasing. Thanks!
             
                     style_input.send_keys(tag)
                     time.sleep(1.5)
-            
-                    style_input.send_keys(Keys.ARROW_DOWN)
-                    time.sleep(0.3)
-                    style_input.send_keys(Keys.ENTER)
-                    time.sleep(0.5)
-                    
-                    # Click outside to commit the selected tag
-                    self.driver.find_element(By.TAG_NAME, "body").click()
+
+                    style_option = WebDriverWait(self.driver, 5).until(
+                        EC.element_to_be_clickable(
+                            (
+                                By.XPATH,
+                                f"//*[normalize-space()='{tag}']"
+                            )
+                        )
+                    )
+
+                    self.driver.execute_script(
+                        "arguments[0].scrollIntoView({block: 'center'});",
+                        style_option
+                    )
+                    time.sleep(0.2)
+                    self.driver.execute_script("arguments[0].click();", style_option)
                     time.sleep(0.5)
             
                     logger.info(f"✓ Added style tag: {tag}")
