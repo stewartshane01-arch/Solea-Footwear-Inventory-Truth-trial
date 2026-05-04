@@ -76,8 +76,7 @@ class CrosslistService:
             logger.debug(f"Unit {unit.unit_code} currently listed on: {listed_platforms}")
             
             # Determine which platforms need listings
-            # target_platforms = ['poshmark']
-            target_platforms = ['poshmark']
+            target_platforms = ['mercari']
             platforms_to_list = [p for p in target_platforms if p not in listed_platforms]
             
             if not platforms_to_list:
@@ -166,33 +165,37 @@ class CrosslistService:
         
         # Download images
         image_handler = ImageHandler()
-        local_images = image_handler.download_images(template.photos)
+        local_images = []
         
-        if not local_images:
-            return {
-                'success': False,
-                'error': 'Failed to download images'
-            }
+        try:
+            local_images = image_handler.download_images(template.photos)
         
-        # Create listing using Selenium
-        if platform == 'poshmark':
-            from crosslisting.poshmark_lister import PoshmarkLister
-            lister = PoshmarkLister()
-            result = lister.create_listing(platform_data, local_images)
+            if not local_images:
+                return {
+                    'success': False,
+                    'error': 'Failed to download images'
+                }
         
-        elif platform == 'mercari':
-            from crosslisting.mercari_lister import MercariLister
-            lister = MercariLister()
-            result = lister.create_listing(platform_data, local_images)
+            # Create listing using Selenium
+            if platform == 'poshmark':
+                from crosslisting.poshmark_lister import PoshmarkLister
+                lister = PoshmarkLister()
+                result = lister.create_listing(platform_data, local_images)
         
-        else:
-            return {
-                'success': False,
-                'error': f'Unknown platform: {platform}'
-            }
+            elif platform == 'mercari':
+                from crosslisting.mercari_lister import MercariLister
+                lister = MercariLister()
+                result = lister.create_listing(platform_data, local_images)
         
-        # Clean up downloaded images
-        image_handler.cleanup(local_images)
+            else:
+                return {
+                    'success': False,
+                    'error': f'Unknown platform: {platform}'
+                }
+        
+        finally:
+            if local_images:
+                image_handler.cleanup(local_images)
         
         if not result['success']:
             return result
@@ -239,61 +242,6 @@ class CrosslistService:
             'channel_listing_id': result['channel_listing_id']
         }
     
-    # def _format_for_platform(self, template, platform: str) -> Dict:
-    #     """
-    #     Format template data for specific platform
-        
-    #     Args:
-    #         template: ListingTemplate object
-    #         platform (str): Platform name
-        
-    #     Returns:
-    #         dict: Platform-formatted listing data
-    #     """
-    #     # Get platform-specific pricing
-    #     # price = template.pricing.get(platform, template.base_price)
-
-    #     # Platform-specific pricing
-    #     if platform == 'poshmark':
-    #         # Same price as eBay, NO free shipping
-    #         price = template.base_price
-    #         shipping = 'buyer_pays'  # Buyer pays shipping
-    #     elif platform == 'mercari':
-    #         # Same price as eBay, FREE shipping
-    #         price = template.base_price
-    #         shipping = 'free'  # Seller pays shipping
-    #     else:
-    #         price = template.base_price
-    #         shipping = None
-        
-    #     # Get platform-specific category
-    #     category = template.category_mappings.get(platform, '')
-        
-    #     # Format title (platform-specific limits)
-    #     title = template.title
-    #     if platform == 'poshmark':
-    #         title = title[:80]  # Poshmark 80 char limit
-    #     elif platform == 'mercari':
-    #         title = title[:40]  # Mercari 40 char limit
-        
-    #     # Format description
-    #     description = template.description
-    #     if platform == 'poshmark':
-    #         description = description[:500]  # Poshmark 500 char limit
-    #     elif platform == 'mercari':
-    #         description = description[:1000]  # Mercari 1000 char limit
-        
-    #     return {
-    #         'title': title,
-    #         'description': description,
-    #         'price': price,
-    #         'shipping': shipping,  # ✅ Platform-specific shipping
-    #         'photos': template.photos,
-    #         'category': category,
-    #         'item_specifics': template.item_specifics,
-    #         'sku': template.product.sku_prefix if hasattr(template, 'product') else None
-    #     }
-    
     
     def _format_for_platform(self, template, platform: str) -> Dict:
         # Platform-specific pricing
@@ -302,7 +250,7 @@ class CrosslistService:
             shipping = 'buyer_pays'
         elif platform == 'mercari':
             price = template.base_price
-            shipping = 'free'
+            shipping = 'buyer_pays'
         else:
             price = template.base_price
             shipping = None
@@ -362,50 +310,64 @@ class CrosslistService:
         
         return formatted_data
     
-    def _unit_needs_poshmark_crosslist(self, unit_id) -> bool:
+    def _unit_needs_crosslist(self, unit_id) -> bool:
         """
         Fast pre-check used by bulk_crosslist.
-
+    
         Returns True only if:
         - unit exists
         - unit.status is listed
-        - unit has no active Poshmark listing
+        - unit is missing at least one target marketplace listing
         - unit has a validated listing template
         """
         from database import Unit, ListingTemplate
-
+    
+        target_platforms = ['mercari']
+        # Use this instead if you want both:
+        # target_platforms = ['poshmark', 'mercari']
+    
         unit = self.db.query(Unit).filter(Unit.id == unit_id).first()
-
+    
         if not unit:
             logger.warning(f"Unit {unit_id} not found")
             return False
-
+    
         if unit.status != 'listed':
             logger.debug(f"Unit {unit.unit_code} status is {unit.status}, skipping")
             return False
-
+    
+        listed_platforms = []
+    
         for listing_unit in unit.listing_units:
             listing = listing_unit.listing
             if (
                 listing
                 and listing.status == 'active'
                 and listing.channel
-                and listing.channel.name.lower() == 'poshmark'
             ):
-                return False
-
+                listed_platforms.append(listing.channel.name.lower())
+    
+        platforms_to_list = [
+            platform for platform in target_platforms
+            if platform not in listed_platforms
+        ]
+    
+        if not platforms_to_list:
+            logger.debug(f"Unit {unit.unit_code} already listed on target platforms, skipping")
+            return False
+    
         template = self.db.query(ListingTemplate).filter(
             ListingTemplate.product_id == unit.product_id
         ).first()
-
+    
         if not template:
             logger.debug(f"Unit {unit.unit_code} has no listing template, skipping")
             return False
-
+    
         if not template.is_validated:
             logger.debug(f"Unit {unit.unit_code} template not validated, skipping")
             return False
-
+    
         return True
 
     def bulk_crosslist(self, unit_ids: List) -> Dict:
@@ -427,8 +389,8 @@ class CrosslistService:
 
         for unit_id in unit_ids:
             try:
-                if not self._unit_needs_poshmark_crosslist(unit_id):
-                    logger.info(f"Skipping unit {unit_id}: already listed on Poshmark or not eligible")
+                if not self._unit_needs_crosslist(unit_id):
+                    logger.info(f"Skipping unit {unit_id}: already listed on target platforms or not eligible")
                     results['processed'] += 1
                     continue
 
