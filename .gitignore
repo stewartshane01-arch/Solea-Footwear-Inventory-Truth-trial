@@ -21,3 +21,6 @@ build/
 *.zip
 *.log
 *.tmp
+token.json
+credentials.json
+gmail_token.pickle

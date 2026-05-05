@@ -99,6 +99,9 @@ CREATE TABLE units (
     status VARCHAR(50) DEFAULT 'ready_to_list',
     cost_basis DECIMAL(10, 2),
     notes TEXT,
+    sold_at TIMESTAMP,
+    sold_price DECIMAL(10, 2),
+    sold_platform VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
@@ -159,6 +162,8 @@ CREATE TABLE listings (
     mode VARCHAR(50) DEFAULT 'single_quantity',
     photos JSONB,
     item_specifics JSONB,
+    sold_at TIMESTAMP,
+    sold_price DECIMAL(10, 2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ended_at TIMESTAMP,
@@ -450,6 +455,7 @@ CREATE TABLE returns (
     item_title TEXT,
     brand VARCHAR(200),
     sku VARCHAR(100),
+    external_listing_id VARCHAR(200),
     internal_order_id UUID REFERENCES units(id),
     return_reason_ebay VARCHAR(200),
     buyer_comment TEXT,
@@ -475,6 +481,7 @@ CREATE TABLE returns (
 COMMENT ON TABLE returns IS 'Master table for tracking return lifecycle';
 COMMENT ON COLUMN returns.marketplace IS 'Sales platform (e.g., eBay)';
 COMMENT ON COLUMN returns.return_id IS 'eBay return ID';
+COMMENT ON COLUMN returns.external_listing_id IS 'Marketplace listing ID (e.g., eBay ItemID)';
 COMMENT ON COLUMN returns.order_number IS 'Original order number';
 COMMENT ON COLUMN returns.internal_order_id IS 'Reference to internal unit';
 COMMENT ON COLUMN returns.status_current IS 'Current status of the return';
@@ -487,6 +494,7 @@ COMMENT ON COLUMN returns.classifier_confidence IS 'Confidence level of classifi
 CREATE INDEX idx_returns_return_id ON returns(return_id);
 CREATE INDEX idx_returns_order_number ON returns(order_number);
 CREATE INDEX idx_returns_sku ON returns(sku);
+CREATE INDEX idx_returns_external_listing_id ON returns(external_listing_id);
 CREATE INDEX idx_returns_internal_order_id ON returns(internal_order_id);
 CREATE INDEX idx_returns_status_current ON returns(status_current);
 CREATE INDEX idx_returns_final_outcome ON returns(final_outcome);

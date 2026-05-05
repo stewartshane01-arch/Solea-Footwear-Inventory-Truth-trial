@@ -308,6 +308,7 @@ class Return(Base):
     item_title = Column(Text)
     brand = Column(String(200))
     sku = Column(String(100))
+    external_listing_id = Column(String(200))
     internal_order_id = Column(UUID(as_uuid=True), ForeignKey('units.id'))
     return_reason_ebay = Column(String(200))
     buyer_comment = Column(Text)
