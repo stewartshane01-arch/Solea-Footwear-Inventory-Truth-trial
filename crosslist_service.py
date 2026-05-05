@@ -8,13 +8,13 @@ from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
+POSHMARK_DAILY_CAP = 300
 
 class CrosslistService:
     """Service for managing cross-listing to multiple platforms"""
     
     def __init__(self, db):
         self.db = db
-    
 
     def check_and_crosslist(self, unit_id) -> Dict:
         """
@@ -31,6 +31,7 @@ class CrosslistService:
         logger.info(f"Checking cross-listing for unit {unit_id}")
         
         results = {
+            poshmark_created_today = 0
             'unit_id': str(unit_id),
             'needs_crosslisting': False,
             'platforms_to_list': [],
@@ -394,9 +395,18 @@ class CrosslistService:
                     results['processed'] += 1
                     continue
 
+                # STOP if Poshmark cap reached
+                if poshmark_created_today >= POSHMARK_DAILY_CAP:
+                    logger.info("Reached Poshmark daily cap of 300. Stopping run.")
+                    break
+                
                 result = self.check_and_crosslist(unit_id)
                 results['processed'] += 1
                 results['created'] += len(result.get('created_listings', []))
+                # Count only Poshmark listings
+                for listing in result.get('created_listings', []):
+                    if listing.get('platform') == 'poshmark':
+                        poshmark_created_today += 1
 
                 if result.get('errors'):
                     results['errors'].extend(result['errors'])
