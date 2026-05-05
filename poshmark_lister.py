@@ -199,17 +199,15 @@ def map_poshmark_condition(raw_condition: str) -> str:
 class PoshmarkLister:
     """Selenium-based listing creation for Poshmark"""
     
-    def __init__(self, profile_dir: str = None):
+    def __init__(self, profile_dir: str = None, profile_name: str = "poshmark"):
 
-        # Get profile path
         if profile_dir:
             self.profile_dir = os.path.abspath(profile_dir)
         else:
-            # self.profile_dir = os.path.join(os.path.dirname(base_dir), 'delisting', 'profiles')
-            # Default: profiles folder next to this file
             base_dir = os.path.dirname(os.path.abspath(__file__))
             self.profile_dir = os.path.join(base_dir, "profiles")
-        
+
+        self.profile_name = profile_name
         self.driver = None
     
     def create_listing(self, listing_data: Dict, image_paths: List[str]) -> Dict:
@@ -308,8 +306,9 @@ class PoshmarkLister:
             chrome_options = Options()
             
             # Use Poshmark profile (pre-logged in)
-            profile_path = os.path.join(self.profile_dir, 'poshmark')
-            profile_path = os.path.abspath(profile_path)
+            profile_path = os.path.abspath(
+                os.path.join(self.profile_dir, self.profile_name)
+            )
             chrome_options.add_argument(f"user-data-dir={profile_path}")
 
             # Anti-detection options
@@ -323,6 +322,7 @@ class PoshmarkLister:
             
             service = Service(ChromeDriverManager().install())
             self.driver = webdriver.Chrome(service=service, options=chrome_options)
+
 
             # Remove webdriver property
             self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
@@ -668,70 +668,11 @@ Please feel free to message us with any questions before purchasing. Thanks!
 
 
             # ============================================
-            # STYLE TAGS (up to 3 tags)
+            # STYLE TAGS
             # ============================================
-            title = listing_data.get('title', '')
-            style_tags = extract_style_tags_from_title(title, max_tags=2)
-
-            logger.debug(f"[STYLE] Style tags: {style_tags}")
-
-            for tag in style_tags:
-                try:
-                    style_input = WebDriverWait(self.driver, 10).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, '[data-vv-name="style-tag-input"]'))
-                    )
-
-                    style_input.click()
-                    time.sleep(0.3)
-
-                    # Clear any leftover text from previous failed style attempt
-                    style_input.send_keys(Keys.CONTROL, "a")
-                    style_input.send_keys(Keys.BACKSPACE)
-                    time.sleep(0.2)
-
-                    style_input.send_keys(tag)
-                    time.sleep(1.5)
-
-                    style_option_xpath = (
-                        f"//div[contains(@class, 'dropdown') or contains(@class, 'suggestion') or contains(@class, 'typeahead')]"
-                        f"//*[normalize-space()='{tag}']"
-                        f"|//li[normalize-space()='{tag}']"
-                        f"|//button[normalize-space()='{tag}']"
-                    )
-
-                    style_option = WebDriverWait(self.driver, 5).until(
-                        EC.element_to_be_clickable((By.XPATH, style_option_xpath))
-                    )
-
-                    self.driver.execute_script("arguments[0].click();", style_option)
-                    time.sleep(1)
-
-                    # Verify tag was added somewhere on the page
-                    added_tag = self.driver.find_elements(
-                        By.XPATH,
-                        f"//*[contains(@class, 'tag') or contains(@class, 'pill') or contains(@class, 'chip')][normalize-space()='{tag}']"
-                    )
-
-                    if not added_tag:
-                        raise Exception(f"Style tag '{tag}' was clicked but not verified as added")
-                    self.driver.find_element(By.TAG_NAME, "body").click()
-                    time.sleep(0.3)
-
-                    logger.info(f"✓ Added style tag: {tag}")
-
-                except Exception as e:
-                    logger.warning(f"Style tag '{tag}' failed, clearing and skipping: {e}")
-
-                    try:
-                        style_input = self.driver.find_element(By.CSS_SELECTOR, '[data-vv-name="style-tag-input"]')
-                        style_input.click()
-                        style_input.send_keys(Keys.CONTROL, "a")
-                        style_input.send_keys(Keys.BACKSPACE)
-                        self.driver.find_element(By.TAG_NAME, "body").click()
-                    except Exception:
-                        pass
-
-                    continue
+            # Disabled intentionally.
+            # Poshmark style tag UI is unreliable and style tags are optional.
+            logger.info("[STYLE] Skipping style tags")
                         
             # Brand
             brand_value = listing_data.get('brand') or listing_data.get('item_specifics', {}).get('Brand')
