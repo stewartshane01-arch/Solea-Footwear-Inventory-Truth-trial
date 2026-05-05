@@ -692,23 +692,30 @@ Please feel free to message us with any questions before purchasing. Thanks!
                     style_input.send_keys(tag)
                     time.sleep(1.5)
 
-                    # Click exact dropdown option only
-                    style_option = WebDriverWait(self.driver, 5).until(
-                        EC.element_to_be_clickable(
-                            (
-                                By.XPATH,
-                                f"//*[contains(@class, 'dropdown') or contains(@class, 'suggestion') or self::li or self::div or self::span][normalize-space()='{tag}']"
-                            )
-                        )
+                    style_option_xpath = (
+                        f"//div[contains(@class, 'dropdown') or contains(@class, 'suggestion') or contains(@class, 'typeahead')]"
+                        f"//*[normalize-space()='{tag}']"
+                        f"|//li[normalize-space()='{tag}']"
+                        f"|//button[normalize-space()='{tag}']"
                     )
 
-                    self.driver.execute_script(
-                        "arguments[0].scrollIntoView({block: 'center'});",
-                        style_option
+                    style_option = WebDriverWait(self.driver, 5).until(
+                        EC.element_to_be_clickable((By.XPATH, style_option_xpath))
                     )
-                    time.sleep(0.2)
+
                     self.driver.execute_script("arguments[0].click();", style_option)
-                    time.sleep(0.7)
+                    time.sleep(1)
+
+                    # Verify tag was added somewhere on the page
+                    added_tag = self.driver.find_elements(
+                        By.XPATH,
+                        f"//*[contains(@class, 'tag') or contains(@class, 'pill') or contains(@class, 'chip')][normalize-space()='{tag}']"
+                    )
+
+                    if not added_tag:
+                        raise Exception(f"Style tag '{tag}' was clicked but not verified as added")
+                    self.driver.find_element(By.TAG_NAME, "body").click()
+                    time.sleep(0.3)
 
                     logger.info(f"✓ Added style tag: {tag}")
 
