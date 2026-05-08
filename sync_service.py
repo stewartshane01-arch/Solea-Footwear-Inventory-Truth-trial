@@ -63,10 +63,11 @@ class SyncService:
                 .filter(Unit.status == "listed")
                 .filter(
                     (ListingTemplate.id == None) |
+                    (ListingTemplate.is_validated != True) |
                     (ListingTemplate.photos == None) |
                     (ListingTemplate.category_mappings == None)
                 )
-                .limit(750)
+                .limit(500)
                 .all()
             )
             
