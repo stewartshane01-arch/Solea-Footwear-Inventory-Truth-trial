@@ -3,6 +3,7 @@ Sync Service
 Matches eBay listings with inventory units and creates alerts for mismatches
 """
 import logging
+import re
 from datetime import datetime
 from sqlalchemy.orm import Session
 from database import (
@@ -233,9 +234,31 @@ class SyncService:
             ebay_item = full_details
 
             # Prepare fallback/non-AI Poshmark data for template repair
-            item_specifics = ebay_item.get("item_specifics", {})
+            item_specifics = ebay_item.get("item_specifics", {}) or {}
 
-            title_lower = ebay_item.get("title", "").lower()
+            title = ebay_item.get("title", "")
+            title_lower = title.lower()
+            
+            size_value = (
+                item_specifics.get("US Shoe Size")
+                or item_specifics.get("Size")
+                or item_specifics.get("Shoe Size")
+                or ""
+            )
+            
+            if not size_value:
+                size_match = re.search(r'\b(?:Size|Sz)\s+([0-9]{1,2}(?:\.[0-9])?[A-Z]?)\b', title, re.IGNORECASE)
+                if size_match:
+                    size_value = size_match.group(1)
+            
+            brand_value = item_specifics.get("Brand", "")
+            
+            if not brand_value:
+                brand_value = ebay_item.get("brand", "")
+            
+            item_specifics["Brand"] = brand_value
+            item_specifics["Size"] = size_value
+
             category_lower = ebay_item.get("category_name", "").lower()
 
             department = "Men"
@@ -270,12 +293,7 @@ class SyncService:
                         "level_3": level_3
                     },
                     "condition": "Good",
-                    "size": (
-                        item_specifics.get("US Shoe Size")
-                        or item_specifics.get("Size")
-                        or item_specifics.get("Shoe Size")
-                        or ""
-                    ),
+                    "size": size_value,
                     "color": ["Black"],
                     "brand": item_specifics.get("Brand", "")
                 },
